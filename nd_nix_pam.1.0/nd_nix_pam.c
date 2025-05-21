@@ -1342,6 +1342,7 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 nd_pam_authenticate_user_fin:
 	if (pam_logging == LOGGING_ON)
 	{
+		pam_putenv(pamh, "RECODE_FLAG=ON");
 
 		memset(sDataEnv_var, 0x00, sizeof(sDataEnv_var));
 		snprintf(sDataEnv_var, sizeof(sDataEnv_var), HIWARE_LAST_AUTH_CODE_FORMAT, logItem.pamCertDtlAuthCode);
@@ -2129,7 +2130,7 @@ pam_sm_auth_ex:
 
 	if (pam_logging == LOGGING_ON)
 	{
-
+		pam_putenv(pamh, "RECODE_FLAG=ON");
 		snprintf(logItem.svrConnSessKey, sizeof(logItem.svrConnSessKey), "%s", uuid_str ? uuid_str : "");
 
 		if (strcmp(logItem.pamCertDtlCode, PAM_SU_LOGIN) == 0 || strcmp(logItem.pamCertDtlCode, PAM_SU_LOGOUT) == 0)
@@ -2430,6 +2431,16 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
 	}
 
 	snprintf(agtAuthNo, sizeof(agtAuthNo), "%s", ndshell_agtAuthNo ? ndshell_agtAuthNo : "");
+
+	// pam_sm_close_session
+	const char *flag = pam_getenv(pamh, "RECODE_FLAG");
+	if (flag && strcmp(flag, "ON") == 0) {
+		if (pam_opermode == 0)
+		{
+			pam_opermode    = 1;
+			pam_logging     = 1;
+		}
+	}
 
 	if (pam_opermode == 0)
 	{
