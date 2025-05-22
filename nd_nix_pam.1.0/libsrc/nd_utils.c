@@ -1555,6 +1555,18 @@ const char * getPamRuleFilePath(const char* sDataHomeDir)
 	return pam_rule_file;
 }
 
+const char * getPamSessionBakRuleFilePath(const char* sDataHomeDir, const char *sSessionKey)
+{
+        static char pam_rule_file[2048];
+
+	if (!sDataHomeDir || !sSessionKey || !RULE_DIR || !COMMON_RULE_FILE) {
+        	return NULL;
+    	}	
+
+        snprintf (pam_rule_file, sizeof (pam_rule_file), "/%s/%s/%s/%s",sDataHomeDir, RULE_DIR, sSessionKey, COMMON_RULE_FILE);
+        return pam_rule_file;
+}
+
 const char * getPambakSulogFilePath(const char* sDataHomeDir)
 {
 	static char pam_subaklog_file[256];
@@ -2770,6 +2782,9 @@ int check_pam_su_policy(const char *json_file, const char *switch_account, char 
 /*
 	//
 */
+#if 0
+int check_sampolicyUsingPamAuthNm(const char *json_file, const char *switch_tar_account, 
+#endif
 
 /*
         //
@@ -2808,12 +2823,12 @@ int check_sam_su_policy(const char *json_file, const char *switch_account, char 
         int rule_len = json_object_array_length(rule_list);
 
         for (int i = 0; i < rule_len; i++) {
-		/*
+#if 0		
                 struct json_object *rule = json_object_array_get_idx(rule_list, i);
                 struct json_object *account_list = json_object_object_get(rule, "acctIdList");
                 struct json_object *access_date = json_object_object_get(rule, "pmsTerm");
                 struct json_object *wday_list = json_object_object_get(rule, "wdayList");
-		*/
+#endif		
 
 		struct json_object *rule = json_object_array_get_idx(rule_list, i);
 		struct json_object *account_list, *access_date, *wday_list, *agtAuthNo_obj;
@@ -2836,7 +2851,7 @@ int check_sam_su_policy(const char *json_file, const char *switch_account, char 
                         {
                                 bChecked = 1;
 
-				/*
+#if 0				
 				if (json_object_object_get_ex(rule, "pmsTerm", &access_date)) {
 					struct json_object *start_obj, *end_obj;
 				   	if (json_object_object_get_ex(access_date, "start", &start_obj) &&
@@ -2858,7 +2873,7 @@ int check_sam_su_policy(const char *json_file, const char *switch_account, char 
                         			continue;
                     			}
                 		}
-				*/
+#endif
 				struct json_object *logUseYn;
                 		if (json_object_object_get_ex(rule, "logUseYn", &logUseYn)) {
                     			*logging = json_object_get_int(logUseYn);
@@ -3675,3 +3690,97 @@ char *get_current_user_by_getuid(void) 		{
 
     	return strdup("unknown");
 } 
+
+int copy_file_to_folder(const char *src_file, const char *dest_folder) {
+    // 1. 폴더 생성
+    if (mkdir(dest_folder, 0755) == -1 && errno != EEXIST) {
+        perror("mkdir");
+        return -1;
+    }
+
+    // 2. 파일명 추출
+    const char *filename = strrchr(src_file, '/');
+    filename = filename ? filename + 1 : src_file;
+
+    // 3. 전체 목적 경로 생성
+    char dest_path[1024];
+    snprintf(dest_path, sizeof(dest_path), "%s/%s", dest_folder, filename);
+
+    // 4. 원본 파일 열기
+    FILE *src = fopen(src_file, "rb");
+    if (!src) {
+        fprintf(stderr, "Failed to open source file: %s\n", src_file);
+        perror("fopen src");
+        return -1;
+    }
+
+    // 5. 대상 파일 열기
+    FILE *dest = fopen(dest_path, "wb");
+    if (!dest) {
+        fprintf(stderr, "Failed to open destination file: %s\n", dest_path);
+        perror("fopen dest");
+        fclose(src);
+        return -1;
+    }
+
+    // 6. 복사
+    char buffer[4096];
+    size_t n;
+    while ((n = fread(buffer, 1, sizeof(buffer), src)) > 0) {
+        if (fwrite(buffer, 1, n, dest) != n) {
+            perror("fwrite");
+            fclose(src);
+            fclose(dest);
+            return -1;
+        }
+    }
+
+    if (ferror(src)) {
+        perror("fread");
+        fclose(src);
+        fclose(dest);
+        return -1;
+    }
+
+    fclose(src);
+    fclose(dest);
+    return 0;
+}
+
+int delete_folder_and_files(const char *folder_path) {
+    DIR *dir;
+    struct dirent *entry;
+    char filepath[1024];
+
+    dir = opendir(folder_path);
+    if (!dir) {
+        perror("opendir");
+        return -1;
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        // "." 와 ".." 은 건너뜀
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        // 경로 결합
+        snprintf(filepath, sizeof(filepath), "%s/%s", folder_path, entry->d_name);
+
+        // 파일 삭제
+        if (unlink(filepath) == -1) {
+            perror("unlink");
+            closedir(dir);
+            return -1;
+        }
+    }
+
+    closedir(dir);
+
+    // 폴더 삭제
+    if (rmdir(folder_path) == -1) {
+        perror("rmdir");
+        return -1;
+    }
+
+    return 0;
+}

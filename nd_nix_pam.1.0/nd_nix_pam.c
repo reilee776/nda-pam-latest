@@ -789,7 +789,8 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 {
 	int authsvr_port = 0;
 	int retval = 0;
-    int remain_count = 3;
+    	int remain_count = 3;
+	unsigned int flags = 0;
 
 	bool bRetPamPolicy = false, bRetSamPolicy = false, bHiwareAuthRet = false;
 
@@ -798,6 +799,9 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 	char *hiwareTwoFactData = NULL;
 	char sTwoFactString[128];
 	char sDataEnv_var[MAX_ENV_STR_LEN];
+
+	char *sam_env = NULL;
+    	char *pam_env = NULL;
 
 	memset(&logItem, 0x00, sizeof(struct _archive_log));
 
@@ -852,12 +856,12 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 	char *authsvr_emergency_act = get_value_from_inf(g_sConfFilePath, "AGENT_INFO", "AUTH_EMERGENCY_BYPASS_ON");
 
 	/**/
-    nd_log(NDLOG_DBG, "====================================================================");
-    nd_log(NDLOG_DBG, "[Reading Configuration Information]");
-    nd_log(NDLOG_DBG, "Auth Server IP           : [%s]", auth_server_ip);
-    nd_log(NDLOG_DBG, "Auth Server Port         : [%s]", auth_server_port);
-    nd_log(NDLOG_DBG, "Emergency Action         : [%s]", authsvr_emergency_act);
-    nd_log(NDLOG_DBG, "--------------------------------------------------------------------");
+	nd_log(NDLOG_DBG, "====================================================================");
+	nd_log(NDLOG_DBG, "[Reading Configuration Information]");
+	nd_log(NDLOG_DBG, "Auth Server IP           : [%s]", auth_server_ip);
+	nd_log(NDLOG_DBG, "Auth Server Port         : [%s]", auth_server_port);
+	nd_log(NDLOG_DBG, "Emergency Action         : [%s]", authsvr_emergency_act);
+	nd_log(NDLOG_DBG, "--------------------------------------------------------------------");
 
 	/*
 		// convert server port
@@ -1033,6 +1037,16 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 		snprintf(sDataEnv_var, sizeof(sDataEnv_var), HIWARE_SU_SAM_AGT_AUTHNO_FORMAT, ndshell_agtAuthNo ? ndshell_agtAuthNo : "");
 		pam_putenv(pamh, sDataEnv_var);
 
+		sam_env = malloc(strlen(PAM_BAK_SAM_AGT_AUTHNO_FORMAT) + strlen(logItem.agtAuthNo));
+		if (sam_env) {
+
+			sprintf(sam_env, PAM_BAK_SAM_AGT_AUTHNO_FORMAT, logItem.agtAuthNo);
+			int ret = pam_putenv(pamh, sam_env);
+
+			flags |= FLAG_SAM_AUTHNO;
+		}
+		free (sam_env);
+
 		/**/
 		nd_log(NDLOG_TRC, "The current session matches SAM-policy with AuthNo (%s)", logItem.agtAuthNo);
 	}
@@ -1105,6 +1119,16 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 
 		snprintf(sDataEnv_var, sizeof(sDataEnv_var), HIWARE_SU_PAM_AGT_AUTHNO_FORMAT, agt_auth_no ? agt_auth_no : "");
 		pam_putenv(pamh, sDataEnv_var);
+
+		pam_env = malloc(strlen(PAM_BAK_PAM_AGT_AUTHNO_FORMAT) + strlen(logItem.pamAgtAuthNo));
+		if (pam_env) {
+			sprintf(pam_env, PAM_BAK_PAM_AGT_AUTHNO_FORMAT, logItem.pamAgtAuthNo);
+			pam_putenv(pamh, pam_env);
+
+			flags |= FLAG_PAM_AUTHNO;
+		}
+
+		free (pam_env);
 	}
 
 	if (bRetPamPolicy == false && bRetSamPolicy == false)
@@ -1252,7 +1276,8 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 	snprintf(logItem.certStepSeqNo, sizeof(logItem.certStepSeqNo), "%s", hi_hiwareauth_ret.certStepSeqNo);
 
 	/**/
-	nd_log(NDLOG_TRC, "HIWARE authentication request result: success. | certTpCode = %s | certAppTpCode = %s | certStepSeqNo = %s | g_sDataTemporaryAccessKey = %s", logItem.certTpCode, logItem.certAppTpCode, logItem.certStepSeqNo, g_sDataTemporaryAccessKey);
+	nd_log(NDLOG_TRC, "HIWARE authentication request result: success. | certTpCode = %s | certAppTpCode = %s | certStepSeqNo = %s | g_sDataTemporaryAccessKey = %s",
+		       	logItem.certTpCode, logItem.certAppTpCode, logItem.certStepSeqNo, g_sDataTemporaryAccessKey);
 
 	if (strlen(g_sDataTemporaryAccessKey) > 0)
 	{
@@ -1267,7 +1292,8 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 		retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF, &hiwareTwoFactData, sTwoFactString);
 
 		/**/
-		nd_log(NDLOG_DBG, "OTP value entered by the user is [%s]. | g_sDataTemporaryAccessKey =%s | hiwareTwoFactData = %s | agent_id = %s", hiwareTwoFactData, g_sDataTemporaryAccessKey, hiwareTwoFactData, agent_id);
+		nd_log(NDLOG_DBG, "OTP value entered by the user is [%s]. | g_sDataTemporaryAccessKey =%s | hiwareTwoFactData = %s | agent_id = %s", 
+				hiwareTwoFactData, g_sDataTemporaryAccessKey, hiwareTwoFactData, agent_id);
 
 		/*
 			// Send the OTP information to the API server to perform authentication.
@@ -1314,8 +1340,7 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 
 			retval = PAM_AUTH_ERR;
 
-			nd_log(NDLOG_DBG, "Detailed results of additional authentication. | logItem.svrConnFailRsnCode = %s | logItem.svrConnRstTpCode = %s | logItem.pamCertDtlAuthCode = %s ",
-				   logItem.svrConnFailRsnCode, logItem.svrConnRstTpCode, logItem.pamCertDtlAuthCode);
+			nd_log(NDLOG_DBG, "Detailed results of additional authentication. | logItem.svrConnFailRsnCode = %s | logItem.svrConnRstTpCode = %s | logItem.pamCertDtlAuthCode = %s ",logItem.svrConnFailRsnCode, logItem.svrConnRstTpCode, logItem.pamCertDtlAuthCode);
 
 			goto nd_pam_authenticate_user_fin;
 		}
@@ -1323,6 +1348,9 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 
 	retval = PAM_SUCCESS;
 
+	/*
+	 *
+	 */
 	memset(sDataEnv_var, 0x00, sizeof(sDataEnv_var));
 	if (g_sDataHiwareUserNumber)
 	{
@@ -1342,7 +1370,20 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 nd_pam_authenticate_user_fin:
 	if (pam_logging == LOGGING_ON)
 	{
-		pam_putenv(pamh, "RECODE_FLAG=ON");
+		if (pam_opermode == 1)
+			flags |= FLAG_OPERATION_MODE;
+
+		flags |= FLAG_PAM_LOGGING;
+		if (sam_logging == 1)
+			flags |= FLAG_SAM_LOGGING;
+
+		char flag_str[16];
+    		snprintf(flag_str, sizeof(flag_str), "RECODE_FLAG=%u", flags);
+		int ret = pam_putenv(pamh, flag_str);
+		if (ret != PAM_SUCCESS)	{
+			const char *error_msg = pam_strerror(pamh, ret);
+                        nd_log(NDLOG_TRC, "pam_putenv error: %s\n", error_msg);
+		}
 
 		memset(sDataEnv_var, 0x00, sizeof(sDataEnv_var));
 		snprintf(sDataEnv_var, sizeof(sDataEnv_var), HIWARE_LAST_AUTH_CODE_FORMAT, logItem.pamCertDtlAuthCode);
@@ -1427,7 +1468,10 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 											 0,
 										 };
 	char *ndshell_agtAuthNo = NULL;
-
+#ifdef _USE_BITMASK_BACKUP_
+	char *sam_env = NULL;
+        char *pam_env = NULL;
+#endif //_USE_BITMASK_BACKUP_
 	bool bRetPamPolicy = false, bRetSamPolicy = false;
 
 	char *crypted;
@@ -1436,6 +1480,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	const char *current_user;
 
 	int pam_pri_no, pam_action, pam_logging, sam_action, sam_logging, login_status = 0;
+#ifdef _USE_BITMASK_BACKUP_
+	unsigned int envflags = 0;
+#endif //_USE_BITMASK_BACKUP_
 	char *agt_auth_no;
 
 	/*
@@ -1686,6 +1733,16 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 			pam_putenv(pamh, sDataEnv_var);
 		}
 
+		nd_log(NDLOG_TRC, "BACKUP RULE DATA...START");
+		char bak_sess_pol_dir[1024] = {0,};
+		char sess_pol_file[1024] = {0,};
+		sprintf (bak_sess_pol_dir, "/%s/rule/%s", sDataHomeDir, uuid_str);
+		sprintf (sess_pol_file, "/%s/rule/%s", sDataHomeDir,COMMON_RULE_FILE);
+		nd_log(NDLOG_DBG, "output patn - bak_sess_pol_dir[%s]", bak_sess_pol_dir);
+		nd_log(NDLOG_DBG, "output patn - sess_pol_file[%s]", sess_pol_file);
+		nd_log(NDLOG_DBG, "Create Dir :[%s] and copy org rule file result: [%d]", bak_sess_pol_dir,  copy_file_to_folder (sess_pol_file, bak_sess_pol_dir));
+		
+
 		nd_log(NDLOG_TRC, "Create Session Key [%s]", uuid_str);
 		snprintf(pamCertTpCode, sizeof(pamCertTpCode), "%s", PAM_LOGIN);
 
@@ -1702,39 +1759,45 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	else if (tty && strstr(tty, "pts"))
 	{ // SU
 		info = get_su_session_info(pamh);
+		
 		snprintf(logItem.agtConnFormTpCode, sizeof(logItem.agtConnFormTpCode), "%s", PAM_CONN_CONSOLE);
 		snprintf(logItem.userIp, sizeof(logItem.userIp), "%s", info->remote_host);
 		snprintf(logItem.connAcctId, sizeof(logItem.connAcctId), "%s", info->target_user);
 		snprintf(logItem.switchAcctId, sizeof(logItem.switchAcctId), "%s", info->current_user);
 
-		// nd_log (NDLOG_DBG, "su ")
-
-		/**/
 		nd_log(NDLOG_INF, "[NDA-PAM] su session started | User: %s | Terminal: %s", logItem.connAcctId, tty);
 
+		/*
+		 *  	실 계정 보정
+		 */
 		char *real_account = get_current_user_by_getuid();
 		if (real_account != NULL && strcmp(logItem.connAcctId, real_account) != 0)
 		{
 			snprintf(logItem.connAcctId, sizeof(logItem.connAcctId), "%s", real_account);
 		}
 
-		snprintf(logItem.connAcctId, sizeof(logItem.connAcctId), "%s", info->current_user);
-
 		snprintf(logItem.securStepNo, sizeof(logItem.securStepNo), "%s", PAM_SECUR_STEP_PAM);
 		snprintf(logItem.pamCertDtlCode, sizeof(logItem.pamCertDtlCode), "%s", PAM_SU_LOGIN);
 		sprintf(logItem.pamCertDtlAuthCode, "%s", PAM_CERT_DTL_AUTH_PAM_RULE);
 
+		/*
+		 *	세션 키 처리
+		 */
 		const char *sessionkey = pam_getenv(pamh, ENV_HIWARE_SESSIONKEY);
 		if (sessionkey == NULL)
 			sessionkey = getenv(ENV_HIWARE_SESSIONKEY);
 
 		nd_log(NDLOG_DBG, "Get Origin session key: %s", sessionkey);
-
 		snprintf(logItem.svrConnSessKey, sizeof(logItem.svrConnSessKey), "%s", sessionkey ? sessionkey : "");
 
-		memset(uuid_str, 0x00, sizeof(uuid_str));
+		if (uuid_str == NULL)
+			uuid_str = malloc(sizeof(logItem.svrConnSessKey)+ 1);
 
-		snprintf(uuid_str, sizeof(logItem.svrConnSessKey), "%s", sessionkey);
+		if (uuid_str)
+		{
+			memset(uuid_str, 0x00, sizeof(logItem.svrConnSessKey));
+			snprintf(uuid_str, sizeof(logItem.svrConnSessKey), "%s", sessionkey ? sessionkey : "");
+		}
 
 		const char *presessionkey = pam_getenv(pamh, ENV_HIWARE_SU_SESSIONKEY);
 		if (presessionkey == NULL)
@@ -1746,11 +1809,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 			snprintf(sDataEnv_var, sizeof(sDataEnv_var), HIWARE_PRE_SU_SESSION_KEY_FORMAT, presessionkey ? presessionkey : "");
 			pam_putenv(pamh, sDataEnv_var);
 
-			nd_log(NDLOG_DBG, "Save the HIWARE pre su session key. | [%s]", sDataEnv_var);
-
 			snprintf(logItem.svrConnPreSuSessKeyNo, sizeof(logItem.svrConnPreSuSessKeyNo), "%s", presessionkey ? presessionkey : "");
-
-			nd_log(NDLOG_DBG, "turn su session key into pre su session key. | su session key: %s", presessionkey);
 		}
 
 		// CREATE NEW SU SESSION KEY
@@ -1766,6 +1825,11 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		nd_log(NDLOG_DBG, "Save the HIWARE new Session key. | [%s]", sDataEnv_var);
 
 		const char *master_session_type = pam_getenv(pamh, HIWARE_PAM_BAK_SESSIONTYPE);
+#if 0
+		if (master_session_type)
+   			put_env_with_log(pamh, HIWARE_PAM_BAK_SESSIONTYPE_FORMAT, master_session_type, "Copy original HIWARE Session Type");
+#endif
+
 		if (master_session_type == NULL)
 			master_session_type = getenv(HIWARE_PAM_BAK_SESSIONTYPE);
 
@@ -1776,7 +1840,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 
 			nd_log(NDLOG_DBG, "Copy the Origin HIWARE Session Type to New Session. | [%s]", sDataEnv_var);
 		}
-
 		// const char *
 		// HIWARE_RUN_MODE
 		const char *sam_run_mode = pam_getenv(pamh, HIWARE_SAM_BAK_RUNMODE);
@@ -1826,8 +1889,20 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		if (su_pam_agt_authno == NULL)
 		{
 			su_pam_agt_authno = getenv(PAM_BAK_SU_PAM_AGT_AUTHNO);
+#if 0
+			if (su_pam_agt_authno != NULL)
+			{
+				nd_log(NDLOG_DBG, "Get the Origin PAM AuthNo to the Env: %s", su_pam_agt_authno);
 
-			nd_log(NDLOG_DBG, "Get the Origin PAM AuthNo to the Env: %s", su_pam_agt_authno);
+				pam_env = malloc(strlen(PAM_BAK_PAM_AGT_AUTHNO_FORMAT) + strlen(su_pam_agt_authno) + 1);
+				if (pam_env) {
+					sprintf(pam_env, PAM_BAK_PAM_AGT_AUTHNO_FORMAT, su_pam_agt_authno);
+					pam_putenv(pamh, pam_env);
+					envflags |= FLAG_PAM_AUTHNO;
+				}
+				free (pam_env);
+			}
+#endif
 		}
 
 		const char *su_sam_agt_authno = pam_getenv(pamh, PAM_BAK_SU_SAM_AGT_AUTHNO);
@@ -1836,6 +1911,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 			su_sam_agt_authno = getenv(PAM_BAK_SU_SAM_AGT_AUTHNO);
 
 			nd_log(NDLOG_DBG, "Get the Origin SAM AuthNo to the Env: %s", su_pam_agt_authno);
+
+
 		}
 
 		time_t current_time = time(NULL);
@@ -1846,8 +1923,12 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 
 		if (su_sam_agt_authno)
 		{
-			snprintf(logItem.agtAuthNo, sizeof(logItem.agtAuthNo), "%s", su_sam_agt_authno);
+			//snprintf(logItem.agtAuthNo, sizeof(logItem.agtAuthNo), "%s", su_sam_agt_authno);
+#if 0			
 			if (!check_sam_su_policy(getPamRuleFilePath(sDataHomeDir), logItem.switchAcctId, su_sam_agt_authno, current_time, current_wday, &sam_logging))
+#endif
+			if (!check_sam_su_policy(getPamSessionBakRuleFilePath(sDataHomeDir, logItem.svrConnSessKey), 
+						logItem.switchAcctId, su_sam_agt_authno, current_time, current_wday, &sam_logging))				 
 			{
 				snprintf(logItem.svrConnFailRsnCode, sizeof(logItem.svrConnFailRsnCode), PAM_SVR_FAIL_OS_AUTH_FAIL);
 				snprintf(logItem.securStepNo, sizeof(logItem.securStepNo), "%s", PAM_SECUR_STEP_NDSHELL);
@@ -1858,12 +1939,14 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 				nd_log(NDLOG_TRC, "PAM policy verification completed - Blocked by SAM policy.(%s)", info->current_user);
 
 				/**/
-				nd_log(NDLOG_ERR, "[HIW-AGT-PAM-PMER-000001] Access denied due to SAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", info->current_user, logItem.userIp, tty, su_sam_agt_authno);
+				nd_log(NDLOG_ERR, "[HIW-AGT-PAM-PMER-000001] Access denied due to SAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", 
+						info->current_user, logItem.userIp, tty, su_sam_agt_authno);
 
 				retval = PAM_PERM_DENIED;
 				goto pam_sm_auth_ex;
 			}
 
+			snprintf(logItem.agtAuthNo, sizeof(logItem.agtAuthNo), "%s", su_sam_agt_authno);
 			snprintf(logItem.svrConnRstTpCode, sizeof(logItem.svrConnRstTpCode), "%s", PAM_AUTH_SUCCESS);
 			snprintf(logItem.securStepNo, sizeof(logItem.securStepNo), "%s", PAM_SECUR_STEP_NDSHELL);
 			bRetSamPolicy = true;
@@ -1872,20 +1955,32 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 			nd_log(NDLOG_TRC, "PAM policy verification completed - Allowed by PAM & SAM policy.(%s)", info->current_user);
 
 			/**/
-			nd_log(NDLOG_INF, "[NDA-PAM] Access granted by SAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", info->current_user, logItem.userIp, tty, su_sam_agt_authno);
+			nd_log(NDLOG_INF, "[NDA-PAM] Access granted by SAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", 
+					info->current_user, logItem.userIp, tty, su_sam_agt_authno);
 
 			memset(sDataEnv_var, 0x00, sizeof(sDataEnv_var));
 
 			snprintf(sDataEnv_var, sizeof(sDataEnv_var), HIWARE_SU_SAM_AGT_AUTHNO_FORMAT, su_sam_agt_authno ? su_sam_agt_authno : "");
 			pam_putenv(pamh, sDataEnv_var);
-
+#ifdef _USE_BITMASK_BACKUP_
+			sam_env = malloc(strlen(PAM_BAK_SAM_AGT_AUTHNO_FORMAT) + strlen(logItem.agtAuthNo));
+			if (sam_env) {
+				sprintf(sam_env, PAM_BAK_SAM_AGT_AUTHNO_FORMAT, logItem.agtAuthNo);
+				int ret = pam_putenv(pamh, sam_env);
+				envflags |= FLAG_SAM_AUTHNO;
+			}                                                                                                                                                                              free (sam_env);
+#endif //_USE_BITMASK_BACKUP_
 			retval = PAM_SUCCESS;
 		}
 
 		if (su_pam_agt_authno)
 		{
 			snprintf(logItem.pamAgtAuthNo, sizeof(logItem.pamAgtAuthNo), "%s", su_pam_agt_authno);
+#if 0
 			if (!check_pam_su_policy(getPamRuleFilePath(sDataHomeDir), info->current_user, su_pam_agt_authno, current_time, current_wday, &pam_logging))
+#endif
+			if (!check_pam_su_policy(getPamSessionBakRuleFilePath(sDataHomeDir, logItem.svrConnSessKey), 
+						info->current_user, su_pam_agt_authno, current_time, current_wday, &pam_logging))
 			{
 				snprintf(logItem.svrConnFailRsnCode, sizeof(logItem.svrConnFailRsnCode), PAM_SVR_FAIL_OS_AUTH_FAIL);
 				snprintf(logItem.securStepNo, sizeof(logItem.securStepNo), "%s", PAM_SECUR_STEP_PAM);
@@ -1896,7 +1991,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 				nd_log(NDLOG_TRC, "PAM Policy verification failed. - Blocked by PAM policy.(%s)", info->current_user);
 
 				/**/
-				nd_log(NDLOG_ERR, "[HIW-AGT-PAM-PMER-000002] Access denied due to PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", info->current_user, logItem.userIp, tty, su_pam_agt_authno);
+				nd_log(NDLOG_ERR, "[HIW-AGT-PAM-PMER-000002] Access denied due to PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", 
+						info->current_user, logItem.userIp, tty, su_pam_agt_authno);
 
 				pam_logging = true;
 
@@ -1910,21 +2006,40 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 			bRetPamPolicy = true;
 
 			/**/
-			nd_log(NDLOG_INF, "[NDA-PAM] Access granted by PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", info->current_user, logItem.userIp, tty, su_pam_agt_authno);
+			nd_log(NDLOG_INF, "[NDA-PAM] Access granted by PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", 
+					info->current_user, logItem.userIp, tty, su_pam_agt_authno);
 
 			memset(sDataEnv_var, 0x00, sizeof(sDataEnv_var));
 			snprintf(sDataEnv_var, sizeof(sDataEnv_var), HIWARE_SU_PAM_AGT_AUTHNO_FORMAT, su_pam_agt_authno ? su_pam_agt_authno : "");
 			pam_putenv(pamh, sDataEnv_var);
+#ifdef _USE_BITMASK_BACKUP_
+			pam_env = malloc(strlen(PAM_BAK_PAM_AGT_AUTHNO_FORMAT) + strlen(logItem.pamAgtAuthNo));
+			if (pam_env) {
+				sprintf(pam_env, PAM_BAK_PAM_AGT_AUTHNO_FORMAT, logItem.pamAgtAuthNo);
+				pam_putenv(pamh, pam_env);
 
+				envflags |= FLAG_PAM_AUTHNO;
+			}
+
+			free (pam_env);
+#endif //_USE_BITMASK_BACKUP_
 			retval = PAM_SUCCESS;
 		}
 
 		snprintf(pamCertTpCode, sizeof(pamCertTpCode), "%s", PAM_SU_LOGIN);
 
 		/**/
-		nd_log(NDLOG_INF, "[NDA-PAM] 'su' operation successful | User switched to: %s | Terminal: %s | Remote Host: %s", logItem.connAcctId, tty, logItem.userIp);
+		nd_log(NDLOG_INF, "[NDA-PAM] 'su' operation successful | User switched to: %s | Terminal: %s | Remote Host: %s", 
+				logItem.connAcctId, tty, logItem.userIp);
+#ifdef _USE_BITMASK_BACKUP_
+		char flag_str[16];
+                snprintf(flag_str, sizeof(flag_str), "RECODE_FLAG=%u", envflags);
+                int ret = pam_putenv(pamh, flag_str);
+#endif //_USE_BITMASK_BACKUP_
 
 		retval = PAM_SUCCESS;
+
+		nd_log(NDLOG_TRC, "[PAM POLICY] SESSION KEY OUTPUT LAST AFTER: %s", sessionkey);
 		goto pam_sm_auth_ex;
 	}
 	else
@@ -1962,21 +2077,32 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		nd_log(NDLOG_TRC, "Proceed with processing if the entered command is either 'su' or 'su -l'. Detect both cases based on the usage of the 'su' command.");
 		if (service != NULL && (strcmp(service, STR_SU) == 0 || strcmp(service, STR_SUL) == 0))
 		{
-
+			/*
+			 *	retrieve master session key from environment variable
+			 */
 			const char *sessionkey = pam_getenv(pamh, ENV_HIWARE_SESSIONKEY);
 			if (sessionkey == NULL)
 				sessionkey = getenv(ENV_HIWARE_SESSIONKEY);
 
 			nd_log(NDLOG_DBG, "Get the Origin session key to the Env: %s", sessionkey);
 
+			/*
+			 *	create a session key for the new su login context
+			 */
 			snprintf(logItem.svrConnSessKey, sizeof(logItem.svrConnSessKey), "%s", sessionkey ? sessionkey : "");
-			memset(uuid_str, 0x00, sizeof(uuid_str));
+			memset(uuid_str, 0x00, sizeof(logItem.svrConnSessKey));
 			snprintf(uuid_str, sizeof(logItem.svrConnSessKey), "%s", sessionkey);
 
+			/*
+			 *	retrieve pre-su-session key from environment variable 
+			 */
 			const char *presessionkey = pam_getenv(pamh, ENV_HIWARE_SU_SESSIONKEY);
 			if (presessionkey == NULL)
 				presessionkey = getenv(ENV_HIWARE_SU_SESSIONKEY);
 
+			/*
+			 *	check for existing su session key and save it as pre-su-session key in the environment
+			 */
 			if (presessionkey != NULL)
 			{
 				memset(sDataEnv_var, 0x00, sizeof(sDataEnv_var));
@@ -2031,8 +2157,10 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 
 			if (su_sam_agt_authno)
 			{
+				//PAM_BAK_SAM_AGT_AUTHNO
 				snprintf(logItem.agtAuthNo, sizeof(logItem.agtAuthNo), "%s", su_sam_agt_authno);
-				if (!check_sam_su_policy(getPamRuleFilePath(sDataHomeDir), info->current_user, su_sam_agt_authno, current_time, current_wday, &sam_logging))
+				if (!check_sam_su_policy(getPamRuleFilePath(sDataHomeDir), info->current_user, su_sam_agt_authno, 
+							current_time, current_wday, &sam_logging))
 				{
 					snprintf(logItem.svrConnFailRsnCode, sizeof(logItem.svrConnFailRsnCode), PAM_SVR_FAIL_OS_AUTH_FAIL);
 					snprintf(logItem.securStepNo, sizeof(logItem.securStepNo), "%s", PAM_SECUR_STEP_NDSHELL);
@@ -2040,10 +2168,14 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 					snprintf(logItem.pamCertDtlAuthCode, sizeof(logItem.pamCertDtlAuthCode), "%s", PAM_CERT_DTL_AUTH_SAM_RULE);
 
 					/**/
-					nd_log(NDLOG_INF, "PAM policy verification completed - Blocked by SAM policy.(%s)", info->current_user);
+					nd_log(NDLOG_INF, 
+						"PAM policy verification completed - Blocked by SAM policy.(%s)", 
+						info->current_user);
 
 					/**/
-					nd_log(NDLOG_ERR, "[HIW-AGT-PAM-PMER-000001] Access denied due to SAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", info->current_user, "127.0.0.1", "su", su_sam_agt_authno);
+					nd_log(NDLOG_ERR, 
+						"[HIW-AGT-PAM-PMER-000001] Access denied due to SAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", 
+						info->current_user, "127.0.0.1", "su", su_sam_agt_authno);
 
 					retval = PAM_PERM_DENIED;
 					goto pam_sm_auth_ex;
@@ -2057,7 +2189,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 				nd_log(NDLOG_TRC, "PAM policy verification completed - Allowed by PAM & SAM policy.(%s)", info->current_user);
 
 				/**/
-				nd_log(NDLOG_INF, "[HIW-AGT-PAM-PMER-000002] Access granted by PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", info->current_user, "127.0.0.1", "su", su_sam_agt_authno);
+				nd_log(NDLOG_INF, "[HIW-AGT-PAM-PMER-000002] Access granted by PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", 
+						info->current_user, "127.0.0.1", "su", su_sam_agt_authno);
 
 				retval = PAM_SUCCESS;
 			}
@@ -2090,7 +2223,8 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 				nd_log(NDLOG_TRC, "PAM Policy verification was successful.(%s)", info->current_user);
 
 				/**/
-				nd_log(NDLOG_INF, "[NDA-PAM] Access granted by PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", info->current_user, "127.0.0.1", "su", su_pam_agt_authno);
+				nd_log(NDLOG_INF, "[NDA-PAM] Access granted by PAM-policy | User: %s | Remote Host: %s | Terminal: %s | AuthNo: %s", 
+						info->current_user, "127.0.0.1", "su", su_pam_agt_authno);
 
 				retval = PAM_SUCCESS;
 			}
@@ -2130,8 +2264,36 @@ pam_sm_auth_ex:
 
 	if (pam_logging == LOGGING_ON)
 	{
-		pam_putenv(pamh, "RECODE_FLAG=ON");
-		snprintf(logItem.svrConnSessKey, sizeof(logItem.svrConnSessKey), "%s", uuid_str ? uuid_str : "");
+#ifdef _USE_BITMASK_BACKUP_
+                if (pam_opermode == 1)
+                        envflags |= FLAG_OPERATION_MODE;
+
+                envflags != FLAG_PAM_LOGGING;
+                if (sam_logging == 1)
+                        envflags |= FLAG_SAM_LOGGING;
+#endif //_USE_BITMASK_BACKUP_
+#if 0
+		pam_env = malloc(strlen(PAM_BAK_PAM_AGT_AUTHNO_FORMAT) + strlen(logItem.pamAgtAuthNo));
+                if (pam_env) {
+                        sprintf(pam_env, PAM_BAK_PAM_AGT_AUTHNO_FORMAT, logItem.pamAgtAuthNo);
+                        pam_putenv(pamh, pam_env);
+
+                        envflags |= FLAG_PAM_AUTHNO;
+                }
+
+                free (pam_env);
+#endif
+#ifdef _USE_BITMASK_BACKUP_
+                char flag_str[128];
+                snprintf(flag_str, sizeof(flag_str), "RECODE_FLAG=%u", envflags);
+                int ret = pam_putenv(pamh, flag_str);
+                if (ret != PAM_SUCCESS) {
+                        //ERROR MESSAGE
+			const char *error_msg = pam_strerror(pamh, ret);
+			nd_log(NDLOG_TRC, "pam_putenv error: %s\n", error_msg);
+                }
+#endif //_USE_BITMASK_BACKUP_
+		snprintf(logItem.svrConnSessKey, /*sizeof(logItem.svrConnSessKey)*/sizeof(logItem.svrConnSessKey), "%s", uuid_str ? uuid_str : "");
 
 		if (strcmp(logItem.pamCertDtlCode, PAM_SU_LOGIN) == 0 || strcmp(logItem.pamCertDtlCode, PAM_SU_LOGOUT) == 0)
 			snprintf(logItem.pamCertDtlAuthCode, sizeof(logItem.pamCertDtlAuthCode), PAM_CERT_DTL_AUTH_SU_RULE);
@@ -2145,7 +2307,7 @@ pam_sm_auth_ex:
 		{
 			snprintf(logItem.agtConnFormTpCode, sizeof(logItem.agtConnFormTpCode), "%s", master_session_type);
 		}
-
+		
 		logitem = create_archive_log(logItem.svrConnStartTime,
 									 logItem.svrConnEndTime,
 									 logItem.svrConnRstTpCode,
@@ -2284,33 +2446,16 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
 	(void)argv;
 	(void)flags;
 
-	char pamAgtAuthNo[ND_AGTAUTHNO_MAX_LEN] = {
-		0,
-	};
-	char agtAuthNo[ND_AGTAUTHNO_MAX_LEN] = {
-		0,
-	};
-	char agtNo[16] = {
-		0,
-	};
-	char agt_auth_Number[4] = {
-		0,
-	};
-	char pamCertDtlCode[4] = {
-		0,
-	};
-	char pamCertDtlAuthCode[4] = {
-		0,
-	};
-	char agtConnFormTpCode[4] = {
-		0,
-	};
-	char securStepNo[ND_SECUR_STEP_NO_MAX_LEN] = {
-		0,
-	};
-	char pamCertTpCode[4] = {
-		0,
-	};
+	char bak_sess_pol_dir[1024] = {0,};
+	char pamAgtAuthNo[ND_AGTAUTHNO_MAX_LEN] = {0,};
+	char agtAuthNo[ND_AGTAUTHNO_MAX_LEN] = {0,};
+	char agtNo[16] = {0,};
+	char agt_auth_Number[4] = {0,};
+	char pamCertDtlCode[4] = {0,};
+	char pamCertDtlAuthCode[4] = {0,};
+	char agtConnFormTpCode[4] = {0,};
+	char securStepNo[ND_SECUR_STEP_NO_MAX_LEN] = {0,};
+	char pamCertTpCode[4] = {0,};
 	int pam_pri_no, pam_action, pam_logging, sam_pri_no, sam_action, sam_logging;
 	char *agt_auth_no = NULL, *ndshell_agtAuthNo = NULL;
 
@@ -2354,6 +2499,9 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
 	const char *su_sessionkey = pam_getenv(pamh, ENV_HIWARE_SU_SESSIONKEY);
 	const char *su_presessionkey = pam_getenv(pamh, ENV_HIWARE_PRE_SU_SESSIONKEY);
 	const char *pam_loast_auth = pam_getenv(pamh, PAM_BAK_LAST_AUTH);
+	const char *pam_env_AuthNo = pam_getenv(pamh, PAM_BAK_PAM_AGT_AUTHNO);
+	const char *sam_env_AuthNo = pam_getenv(pamh, PAM_BAK_SAM_AGT_AUTHNO);
+	const char *flag_str = pam_getenv(pamh, "RECODE_FLAG");
 
 	g_nDataSshPort = get_ssh_listening_port();
 
@@ -2421,26 +2569,18 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
 	snprintf(securStepNo, sizeof(securStepNo), "%s", PAM_SECUR_STEP_PAM);
 
 	if (sam_opermode == 1 && is_pam_user_ndshell(pamh) &&
-		validate_json_sampolicy(getPamRuleFilePath(sDataHomeDir), info->remote_host, info->current_user, current_time, current_wday, &ndshell_agtAuthNo, &sam_action, &sam_logging) == 1)
+		validate_json_sampolicy(/*getPamRuleFilePath(sDataHomeDir)*/getPamSessionBakRuleFilePath(sDataHomeDir, sessionkey), 
+				info->remote_host, info->current_user, current_time, current_wday, &ndshell_agtAuthNo, &sam_action, &sam_logging) == 1)
 #else  //_SUPP_DATE_
 	if (is_pam_user_ndshell(pamh) &&
-		validate_json_sampolicy_without_date(getPamRuleFilePath(sDataHomeDir), info->remote_host, info->current_user, &ndshell_agtAuthNo, &sam_action, &sam_logging) == 1)
+		validate_json_sampolicy_without_date(/*getPamRuleFilePath(sDataHomeDir)*/getPamSessionBakRuleFilePath(sDataHomeDir, sessionkey), 
+			info->remote_host, info->current_user, &ndshell_agtAuthNo, &sam_action, &sam_logging) == 1)
 #endif //_SUPP_DATE_
 	{
 		snprintf(securStepNo, sizeof(securStepNo), "%s", PAM_SECUR_STEP_NDSHELL);
 	}
 
 	snprintf(agtAuthNo, sizeof(agtAuthNo), "%s", ndshell_agtAuthNo ? ndshell_agtAuthNo : "");
-
-	// pam_sm_close_session
-	const char *flag = pam_getenv(pamh, "RECODE_FLAG");
-	if (flag && strcmp(flag, "ON") == 0) {
-		if (pam_opermode == 0)
-		{
-			pam_opermode    = 1;
-			pam_logging     = 1;
-		}
-	}
 
 	if (pam_opermode == 0)
 	{
@@ -2449,7 +2589,8 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
 
 	nd_log(NDLOG_TRC, "Starting the PAM-policy check.");
 
-	if (check_pam_policy(getPamRuleFilePath(sDataHomeDir), info->remote_host, info->current_user, current_time, current_wday, &agt_auth_no, &pam_action, &pam_logging) == 1)
+	if (check_pam_policy(/*getPamRuleFilePath(sDataHomeDir)*/getPamSessionBakRuleFilePath(sDataHomeDir, sessionkey)	, 
+				info->remote_host, info->current_user, current_time, current_wday, &agt_auth_no, &pam_action, &pam_logging) == 1)
 	{
 		snprintf(securStepNo, sizeof(securStepNo), "%s", PAM_SECUR_STEP_PAM);
 	}
@@ -2459,6 +2600,33 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
 	nd_log(NDLOG_INF, "[NDA-PAM] User session closed | User: %s | Remote Host: %s | Terminal: %s", info->current_user, info->remote_host, tty);
 
 pam_sm_close_session_fin:
+#ifdef _USE_BITMASK_BACKUP_
+	if (flag_str)
+        {
+                unsigned int envflags = (unsigned int)strtoul(flag_str, NULL, 10);
+
+                if (envflags & FLAG_OPERATION_MODE)
+                        pam_opermode = MODE_ON;
+                if (envflags & FLAG_PAM_LOGGING)
+                        pam_logging  = LOGGING_ON;
+                if (envflags & FLAG_SAM_LOGGING)
+                        sam_logging  = LOGGING_ON;
+                if (envflags & FLAG_SAM_AUTHNO && sam_env_AuthNo != NULL)
+		{
+			memset (agtAuthNo,0x00, sizeof(agtAuthNo));
+			snprintf(agtAuthNo, sizeof(agtAuthNo), "%s", sam_env_AuthNo);
+		}
+		if (envflags & FLAG_PAM_AUTHNO && pam_env_AuthNo != NULL)
+		{
+			memset (pamAgtAuthNo, 0x00, sizeof (pamAgtAuthNo));
+			snprintf (pamAgtAuthNo, sizeof(agtAuthNo), "%s", pam_env_AuthNo);
+                }
+        }
+#endif //_USE_BITMASK_BACKUP_
+
+        sprintf (bak_sess_pol_dir, "/%s/rule/%s", sDataHomeDir, sessionkey);
+	if (strcmp(pamCertTpCode, PAM_SU_LOGOUT) != 0)
+		delete_folder_and_files(bak_sess_pol_dir);
 
 	if (sam_logging == LOGGING_ON || pam_logging == LOGGING_ON) // 1
 	{
@@ -2477,7 +2645,8 @@ pam_sm_close_session_fin:
 		}
 
 		logitem = create_archive_log("", "", PAM_AUTH_SUCCESS, "", agent_id, agtConnFormTpCode, agtAuthNo, "", info->remote_host, securStepNo,
-									 sessionkey, su_sessionkey, su_presessionkey, info->current_user, "", pamAgtAuthNo, agent_id, pamCertTpCode, pamCertDtlAuthCode, "", "", "", "");
+									 sessionkey, su_sessionkey, su_presessionkey, info->current_user, "", pamAgtAuthNo, 
+									 agent_id, pamCertTpCode, pamCertDtlAuthCode, "", "", "", "");
 		nd_pam_archive_log(header, *logitem, (char *)sDataHomeDir);
 		free_archive_log(logitem);
 	}

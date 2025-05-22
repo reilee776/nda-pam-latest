@@ -180,6 +180,8 @@ void parse_ssh_connection(pam_handle_t *pamh, bool isConsole );
 
 const char * getPamRuleFilePath(const char* sDataHomeDir);
 
+const char * getPamSessionBakRuleFilePath(const char* sDataHomeDir, const char *sSessionKey);
+
 const char * getPambakSulogFilePath(const char* sDataHomeDir);
 
 const char * getPambakSessionlogFilePath(const char* sDataHomeDir);
@@ -333,5 +335,9 @@ char *get_current_user_by_getuid(void);
 int check_pam_su_policy(const char *json_file, const char *switch_account, char *agtAuthNo, time_t current_time, int current_wday, int *logging);
 
 int check_sam_su_policy(const char *json_file, const char *switch_account, char *agtAuthNo, time_t current_time, int current_wday, int *logging);
+
+int copy_file_to_folder(const char *src_file, const char *dest_folder);
+
+int delete_folder_and_files(const char *folder_path);
  
 #endif // ND_UTILS_H

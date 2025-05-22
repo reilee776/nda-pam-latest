@@ -38,10 +38,16 @@
 #define ND_CERT_APP_SUCES_FAIL_YN_MAX_LEN 8
 #define ND_CERT_STEP_SEQ_NO_MAX_LEN 8
 
-
 #define MAX_LINE_LENGTH 	1024
 #define MAX_KEY_LENGTH 		128
 #define MAX_VALUE_LENGTH 	256
+
+//[2025-05-21] 로그인 시 환경변수에 저장하고 로그오프 시 사용할 값을 정의
+#define FLAG_OPERATION_MODE   (1 << 0)  // 0x01
+#define FLAG_PAM_LOGGING      (1 << 1)  // 0x02
+#define FLAG_SAM_LOGGING      (1 << 2)  // 0x04
+#define FLAG_PAM_AUTHNO	      (1 << 3)	// 0x08
+#define FLAG_SAM_AUTHNO       (1 << 4)	// 0x10
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
@@ -179,6 +185,11 @@
 #define PAM_BAK_SU_SAM_AGT_AUTHNO	"HIWARE_SU_SAM_AGT_AUTHNO"
 #define PAM_BAK_SU_PAM_AGT_AUTHNO	"HIWARE_SU_PAM_AGT_AUTHNO"
 
+#define PAM_BAK_SAM_AGT_AUTHNO_FORMAT   "HIWARE_SAM_AGT_AUTHNO=%s"
+#define PAM_BAK_PAM_AGT_AUTHNO_FORMAT   "HIWARE_PAM_AGT_AUTHNO=%s"
+
+#define PAM_BAK_SAM_AGT_AUTHNO       "HIWARE_SAM_AGT_AUTHNO"
+#define PAM_BAK_PAM_AGT_AUTHNO       "HIWARE_PAM_AGT_AUTHNO"
 
 #define PAM_BAK_SSH_SERVER_IP        "HIWARE_SSH_CLIENT_IP"
 #define PAM_BAK_SSH_SERVER_PORT      "HIWARE_SSH_SERVER_PORT"
@@ -429,6 +440,8 @@ char g_sDataAgentId[2];
 #define ERR_USER_INFO_DB_QUERY_FAILED              "HIW-AUTH-500037" //"사용자 정보를 조회할 수 없음"
 #define ERR_SECOND_AUTH_POLICY_DB_QUERY_FAILED     "HIW-AUTH-500057" //"2차 인증 정책을 불러올 수 없음"
 #define ERR_ASSET_MANAGER_INFO_DB_ERROR            "HIW-AUTH-500084" //"장비의 자산관리자 정보를 불러올 수 없음. (DB에러)"
+
+#define ERR_USER_NOT_AUTHORIZED			   "HIW-AUTH-PAM-401003" //"접근권한이 없는 사용자"
 
 
 

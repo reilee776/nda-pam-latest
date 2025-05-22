@@ -970,8 +970,8 @@ int parse_JsonResponse_from_login_request(const char *res_doc, st_user_login_res
 
                 // 09
                 else if ((strcmp(error_str, ERR_ACCESS_TIME_DENIED) == 0) ||
-                         (strcmp(error_str, ERR_ACCESS_PERIOD_DENIED) == 0))
-                {
+                         (strcmp(error_str, ERR_ACCESS_PERIOD_DENIED) == 0)||
+			 (strcmp(error_str, ERR_USER_NOT_AUTHORIZED) ==0))                {
                         // 09
                         // PAM_SVR_FAIL_UNAUTH_ACCES
                         snprintf(plogin_result->svrConnFailRsnCode, sizeof(plogin_result->svrConnFailRsnCode), PAM_SVR_FAIL_UNAUTH_ACCESS);
