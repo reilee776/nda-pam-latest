@@ -26,8 +26,8 @@ LIBS_LIB_CURL_DIR :=../external/curl-7.61.1
 
 else ifeq ($(OPENSSL_VERSION),3)
 $(info ✅ OpenSSL 3.x configuration is being applied)
-LIBS_LIB_OPENSSL_DIR :=/usr/local/openssl-3.0.7
-LIBS_LIB_CURL_DIR :=/usr/local/curl-8.12.1
+LIBS_LIB_OPENSSL_DIR :=../external/openssl-3.0.7
+LIBS_LIB_CURL_DIR :=../external/curl-8.12.1
 else
 $(error ❌ OPENSSL_VERSION must be 1 or 3)
 endif
@@ -51,7 +51,11 @@ CFLAGS = -g -fPIC \
 		 -DVERSION=\"$(VERSION)\"
 
 # Target output
+ifeq ($(OPENSSL_VERSION),3)
+TARGET = nda-pam.so.3
+else
 TARGET = nda-pam.so
+endif
 
 # Custom library path
 CUSTOM_LIB_PATH = /hiagt/lib/nda-pam
@@ -64,12 +68,17 @@ LDFLAGS = -g -shared -fPIC \
   -lcrypto -lssl \
   -lz
 else ifeq ($(OPENSSL_VERSION),3)
-LDFLAGS = -g -shared -fPIC  \
-          -L$(LIBS_LIB_UUID_DIR)/lib -luuid \
-          -L/usr/local/curl-8.12.1/lib -lcurl \
-          -L/usr/local/openssl-3.0.7/lib64 -lcrypto -lssl \
-          -L$(LIBS_LIB_ZLIB_DIR)/lib -lz \
-          -L$(LIBS_LIB_JSONC_DIR)/lib -l:libjson-c.a	
+LDFLAGS = -g -shared -fPIC \
+  -Wl,--whole-archive $(LIBS_LIB_JSONC_DIR)/lib/libjson-c.a -Wl,--no-whole-archive \
+  -luuid \
+  -lcrypto -lssl \
+  -lz
+#LDFLAGS = -g -shared -fPIC  \
+#          -L$(LIBS_LIB_UUID_DIR)/lib -luuid \
+#          -L/usr/local/curl-8.12.1/lib -lcurl \
+#          -L/usr/local/openssl-3.0.7/lib64 -lcrypto -lssl \
+#          -L$(LIBS_LIB_ZLIB_DIR)/lib -lz \
+#          -L$(LIBS_LIB_JSONC_DIR)/lib -l:libjson-c.a	
 else
 	LDFLAGS = -g -shared -fPIC -static-libgcc \
           -L$(LIBS_LIB_UUID_DIR)/lib -luuid \
@@ -114,7 +123,8 @@ install:
 
 # Clean up generated files
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS) nda-pam.so nda-pam.so.3
+	#rm -f $(OBJS) $(TARGET)
 
 # Debugging: Print variables
 print-vars:
