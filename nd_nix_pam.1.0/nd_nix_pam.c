@@ -1733,14 +1733,18 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 			pam_putenv(pamh, sDataEnv_var);
 		}
 
-		nd_log(NDLOG_TRC, "BACKUP RULE DATA...START");
 		char bak_sess_pol_dir[1024] = {0,};
 		char sess_pol_file[1024] = {0,};
 		sprintf (bak_sess_pol_dir, "/%s/rule/%s", sDataHomeDir, uuid_str);
 		sprintf (sess_pol_file, "/%s/rule/%s", sDataHomeDir,COMMON_RULE_FILE);
+
+#if 0
 		nd_log(NDLOG_DBG, "output patn - bak_sess_pol_dir[%s]", bak_sess_pol_dir);
 		nd_log(NDLOG_DBG, "output patn - sess_pol_file[%s]", sess_pol_file);
 		nd_log(NDLOG_DBG, "Create Dir :[%s] and copy org rule file result: [%d]", bak_sess_pol_dir,  copy_file_to_folder (sess_pol_file, bak_sess_pol_dir));
+#endif //0
+ 
+		copy_file_to_folder (sess_pol_file, bak_sess_pol_dir);
 		
 
 		nd_log(NDLOG_TRC, "Create Session Key [%s]", uuid_str);
@@ -2255,6 +2259,13 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 
 			/**/
 			nd_log(NDLOG_INF, "[console] Additional authentication was successful, and the overall login process was completed successfully.");
+
+			char bak_sess_pol_dir[1024] = {0,};
+			char sess_pol_file[1024] = {0,};
+			sprintf (bak_sess_pol_dir, "/%s/rule/%s", sDataHomeDir, uuid_str);
+			sprintf (sess_pol_file, "/%s/rule/%s", sDataHomeDir,COMMON_RULE_FILE);
+
+			copy_file_to_folder (sess_pol_file, bak_sess_pol_dir);
 
 			retval = PAM_SUCCESS;
 		}
