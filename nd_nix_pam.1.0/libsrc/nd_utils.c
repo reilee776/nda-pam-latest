@@ -424,7 +424,7 @@ void  getpamconf(struct st_pam_conf * pam_conf)
 */
 int connect_to_server(int *sock, const char *section) {
 
-        char szMsg[1024] = {0,};
+        //char szMsg[1024] = {0,};
         char server_ip[16];
         int server_port;
 
@@ -2059,7 +2059,7 @@ int check_pam_policy_old(const char *json_file, const char *ip, const char *acco
 	nd_log (NDLOG_TRC, "check_pam_policy -002");
 
 
-	struct json_object *pam_policy, *rule_list, *rule, *ip_list, *account_list;
+	struct json_object *pam_policy, *rule_list/*, *rule, *ip_list, *account_list*/;
 	if (!json_object_object_get_ex(parsed_json, "pamPolicy", &pam_policy) ||
 	    !json_object_object_get_ex(pam_policy, "ruleList", &rule_list)) 	{
 		json_object_put(parsed_json);
