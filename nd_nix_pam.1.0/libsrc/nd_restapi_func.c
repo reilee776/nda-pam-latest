@@ -155,7 +155,7 @@ const char *GetUserLoginURL()
         }
 
         /**/
-        nd_log(NDLOG_DBG, "Retrieve Stored User Login Request URL: %s", g_sDataUserLoginUrl ? g_sDataUserLoginUrl : "null");
+        nd_log(NDLOG_DBG, "Retrieve Stored User Login Request URL: %s", g_sDataUserLoginUrl[0] ? g_sDataUserLoginUrl : "null");
 
         if (strlen(g_sDataUserLoginUrl) <= 0)
                 return NULL;
@@ -179,7 +179,7 @@ const char *GetTwoFact_OtpURL()
         }
 
         /**/
-        nd_log(NDLOG_DBG, "Retrieve Stored Twofact Login Request URL: %s", g_sDataTwoFactLoginIrl ? g_sDataTwoFactLoginIrl : "null");
+        nd_log(NDLOG_DBG, "Retrieve Stored Twofact Login Request URL: %s", g_sDataTwoFactLoginIrl[0] ? g_sDataTwoFactLoginIrl : "null");
 
         if (strlen(g_sDataTwoFactLoginIrl) <= 0)
                 return NULL;
@@ -347,7 +347,7 @@ char *base64UrlSafeEncode(const unsigned char *input, int length)
         encoded[bufferPtr->length] = '\0';
 
         // Replace '+' with '-' and '/' with '_'.
-        for (int i = 0; i < bufferPtr->length; i++)
+        for (int i = 0; i < (int)bufferPtr->length; i++)
         {
                 if (encoded[i] == '+')
                 {
@@ -841,7 +841,7 @@ int parse_JsonResponse_from_login_request(const char *res_doc, st_user_login_res
 {
 
         struct json_object *parsed_json = NULL, *resultCode = NULL, *content = NULL,
-                           *userNumberItem = NULL, *bool_result = NULL, *temporaryAccessKey = NULL,
+                           /**userNumberItem = NULL,*/ *bool_result = NULL, *temporaryAccessKey = NULL,
                            *errorCode = NULL, *ret_message = NULL, *hi_loginResult = NULL,
                            *userId = NULL, *userNumber = NULL, *currentStep = NULL, *numberOfSteps = NULL, *factors = NULL, *attributes = NULL,
                            *contentSimpleType = NULL;
@@ -1079,8 +1079,8 @@ int parse_JsonResponse_from_login_request(const char *res_doc, st_user_login_res
         const char *userIdStr = "";
         const char *temporaryAccessKeyStr = "";
         const char *currentStepStr = "";
-        const char *numberOfStepsStr = "";
-        const char *certTpCodeStr = "";
+        /*const char *numberOfStepsStr = "";
+        const char *certTpCodeStr = "";*/
         int numberStepsCnt = 0;
 
         if (json_object_object_get_ex(content, "loginResult", &hi_loginResult))
@@ -1117,11 +1117,12 @@ int parse_JsonResponse_from_login_request(const char *res_doc, st_user_login_res
                 numberStepsCnt = json_object_get_int(numberOfSteps);
         }
 
-        snprintf(plogin_result->certTpCode, sizeof(plogin_result->certTpCode), "");
+        //snprintf(plogin_result->certTpCode, sizeof(plogin_result->certTpCode), "");
+	strcpy(plogin_result->certTpCode, "");
 
         if (numberStepsCnt > 0)
         {
-                int nCurrentStepNm = atoi(currentStepStr);
+                //int nCurrentStepNm = atoi(currentStepStr);
                 if (json_object_object_get_ex(content, "factors", &factors) &&
                     json_object_get_type(factors) == json_type_array)
                 {
@@ -1140,7 +1141,8 @@ int parse_JsonResponse_from_login_request(const char *res_doc, st_user_login_res
                                                 snprintf(plogin_result->certTpCode, sizeof(plogin_result->certTpCode), "%s", certTpCodeStr ? certTpCodeStr : "0");
                                         }
                                         else
-                                                snprintf(plogin_result->certTpCode, sizeof(plogin_result->certTpCode), "");
+						strcpy(plogin_result->certTpCode, "");
+                                                //snprintf(plogin_result->certTpCode, sizeof(plogin_result->certTpCode), "");
 
                                         nd_log(NDLOG_DBG, "Extracting \'code\' from JSON response data. | code: %s", plogin_result->certTpCode);
 
@@ -1194,7 +1196,7 @@ char *int_to_str_and_dup(int value)
 int parse_JsonResponse_from_twofact_otp_request(const char *res_doc, st_hiauth_twofact_login_result *plogin_result)
 {
 
-        struct json_object *parsed_json = NULL, *resultCode = NULL, *content = NULL, *bool_result = NULL,
+        struct json_object *parsed_json = NULL, *resultCode = NULL, *content = NULL, /**bool_result = NULL,*/
                            *ret_message = NULL, *errorCode = NULL, *hi_loginResult = NULL,
                            *userId = NULL, *userNumber = NULL, *events = NULL, *attributes = NULL;
 
@@ -1475,6 +1477,7 @@ int parse_JsonResponse_from_ramdom_request(const char *json_str, Worker *worker)
         return RET_SUCCESS;
 }
 
+#if 0
 /*
         //
 */
@@ -1482,6 +1485,7 @@ int requestOSAuthToApiServer(const char *username, const char *password, struct 
 {
         return HI_AUTH_RET_SUCCEED;
 }
+#endif //0
 
 /*
         //
@@ -1749,6 +1753,7 @@ int requestTwoFactAuthToApiserver(const char *type, const char *temporaryAccessK
         return HI_AUTH_RET_SUCCEED;
 }
 
+#if 0
 /*
         //st_hiauth_su_login_result
 */
@@ -1764,3 +1769,4 @@ int requestSuAccessPermissionsToApiServer(const char *current_user, const char *
 {
         return HI_AUTH_RET_SUCCEED;
 }
+#endif

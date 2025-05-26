@@ -18,13 +18,9 @@ void nd_pam_archive_log(struct _msg_header_ header, struct _archive_log logitem,
 {
         time_t now = time(NULL);
         struct tm *t = localtime(&now);
-        struct timeval tv;
-        struct tm *tm_info;
-        size_t len = 0;
-        bool bLogerServer = true;
-        int dummyStrLen = 0,
-            retval = 0,
-            logerport = 0,
+        int retval = 0,
+	    bLogerServer = 0,
+	    logerport = 0,
             logeruse = 0;
 
         int retry_count = 0;
@@ -139,28 +135,17 @@ void nd_pam_write_back_log(char *file_name, struct _msg_header_ *header, char *b
 
 void nd_pam_log_to_JSON(struct _msg_header_ header, char *product_nm, char *agtAuthNo, char *agtId, char *action_type, char *session_status, char *current_user, char *ipAddress, char *sessionKey, char *log_result_data, char *fmt, ...)
 {
-        size_t len = 0;
+        //size_t len = 0;
         bool bLogerServer = true;
-        int dummyStrLen = 0,
-            retval = 0,
+        int retval = 0,
             logerport = 0,
             logeruse = 0;
 
         va_list args;
-        char sLogMsg[1024] = {
-            0,
-        },
-             sBakStr[1024] = {
-                 0,
-             },
-             sDummStr[1024] = {
-                 0,
-             },
-             sDummySizeString[8] = {
+        char sBakStr[1024] = {
                  0,
              };
 
-        char *sFileLogData = NULL;
         char *sDataJsonLog = NULL;
         time_t now = time(NULL);
         struct tm *t = localtime(&now);
@@ -328,13 +313,8 @@ void nd_pam_sulog_to_JSON(struct _msg_header_ header, char *product_nm, char *ag
         bool bLogerServer = true;
         char sLogMsg[1024] = {
             0,
-        },
-             sDummStr[1024] = {
-                 0,
-             },
-             sDummySizeString[8] = {
-                 0,
-             };
+        };
+
         int retval = 0,
             logerport = 0,
             logeruse = 0;
@@ -609,7 +589,7 @@ void nd_pam_session_log_to_JSON(struct _msg_header_ header, char *product_nm, ch
 void nd_pam_log(struct _msg_header_ header, char *product_nm, char *agtAuthNo, char *agtId, char *action_type, char *session_status, char *current_user, char *ipAddress, char *sessionKey, char *log_result_data, char *fmt, ...)
 {
         va_list args;
-        char *trans_format_type = get_value_from_inf(g_sConfFilePath, SECTION_NM_HILOGER_CONF, PAM_CONF_KEY_TRANS_FORMAT); // SERVER_IP
+        //char *trans_format_type = get_value_from_inf(g_sConfFilePath, SECTION_NM_HILOGER_CONF, PAM_CONF_KEY_TRANS_FORMAT); // SERVER_IP
 #ifndef _OLD_SRC_
         va_start(args, fmt);
         nd_pam_log_to_JSON(header, product_nm, agtAuthNo, agtId, action_type, session_status, current_user, ipAddress, sessionKey, log_result_data, fmt, args);
@@ -776,7 +756,7 @@ void nd_pam_log(struct _msg_header_ header, char *product_nm, char *agtAuthNo, c
 
 void nd_pam_sulog(struct _msg_header_ header, char *product_nm, char *agtAuthNo, char *agtId, char *account, char *switch_account, char *su_command, char *client_ip, char *sessionkey, char *collectlogbuffer)
 {
-        char *trans_format_type = get_value_from_inf(g_sConfFilePath, SECTION_NM_HILOGER_CONF, PAM_CONF_KEY_TRANS_FORMAT); // SERVER_IP
+        //char *trans_format_type = get_value_from_inf(g_sConfFilePath, SECTION_NM_HILOGER_CONF, PAM_CONF_KEY_TRANS_FORMAT); // SERVER_IP
 
 #ifndef _OLD_SRC_
         nd_pam_sulog_to_JSON(header, product_nm, agtAuthNo, agtId, account, switch_account, su_command, client_ip, sessionkey, collectlogbuffer);
@@ -927,7 +907,7 @@ void nd_pam_sulog(struct _msg_header_ header, char *product_nm, char *agtAuthNo,
 void nd_pam_session_log(struct _msg_header_ header, char *product_nm, char *agtAuthNo, char *agtId, char *prefix, char *session_id, char *account, int uid, int gid, bool isConsole, char *ipAddr, long time, char *session_key, char *collectlogbuff)
 {
 
-        char *trans_format_type = get_value_from_inf(g_sConfFilePath, SECTION_NM_HILOGER_CONF, PAM_CONF_KEY_TRANS_FORMAT); // SERVER_IP
+        //char *trans_format_type = get_value_from_inf(g_sConfFilePath, SECTION_NM_HILOGER_CONF, PAM_CONF_KEY_TRANS_FORMAT); // SERVER_IP
 #ifndef _OLD_SRC_
         nd_pam_session_log_to_JSON(header, product_nm, agtAuthNo, agtId, prefix, session_id, account, uid, gid, isConsole, ipAddr, time, session_key, collectlogbuff);
         return;

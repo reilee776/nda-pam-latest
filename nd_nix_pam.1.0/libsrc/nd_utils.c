@@ -153,7 +153,7 @@ char *get_value_from_inf(const char *filename, const char *target_section, const
 
         char line[MAX_LINE_LENGTH];
         char current_section[MAX_KEY_LENGTH] = "";
-        static char value[MAX_VALUE_LENGTH];
+        //static char value[MAX_VALUE_LENGTH];
 
         while (fgets(line, sizeof(line), file)) {
                 trim_whitespace(line);

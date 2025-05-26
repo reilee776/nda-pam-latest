@@ -303,10 +303,13 @@ int parse_JsonResponse_from_ramdom_request(const char *json_str, Worker *worker)
 */
 //int send_hiware_login_request ( const char * username, const char *passwd );
 
+#if 0
 /*
 	//
 */
 int requestOSAuthToApiServer (const char *username, const char * password, struct st_hiauth_os_login_result *result);
+#endif // 0
+
 
 /*
 	//
@@ -318,6 +321,7 @@ int requestHiwareAuthToApiServer (const char *username, const char *password, co
 */
 int requestTwoFactAuthToApiserver (const char *type, const char *temporaryAccessKey, const char * stepNumber, const char *authCode, const char* langCode, const char *agent_id,st_hiauth_twofact_login_result *result  );
 
+#if 0
 /*
 	//st_hiauth_su_login_result
 */
@@ -327,7 +331,7 @@ int requestSuAuthToApiServer (const char *username, const char * password, struc
 	//
 */
 int requestSuAccessPermissionsToApiServer (const char *current_user, const char * switch_user, struct st_hiauth_su_access_perm_result * result );
-
+#endif // 0
 
 
 #endif //_ND_RESTAPI_FUNC_H_

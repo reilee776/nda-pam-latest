@@ -345,7 +345,7 @@ void get_user_info(struct pam_user_info *user_info, pam_handle_t *pamh)
 	const char *current_user;
 	const char *switch_user;
 	struct st_hiauth_su_login_result su_login_ret;
-	struct st_hiauth_su_access_perm_result su_access_perm;
+	//struct st_hiauth_su_access_perm_result su_access_perm;
 	bool bJumpPwd = false;
 	bool bIsSuFailed = false;
 	int retval = 0;
@@ -2504,7 +2504,7 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t *pamh, int flags,
 	if (g_sDataHiwareUserNumber == NULL)
 		g_sDataHiwareUserNumber = getenv("HIWARE_USER_NUMBER");
 
-	int pri_no, action, logging;
+	//int pri_no, action, logging;
 	const char *agent_id = get_value_as_string(getPamRuleFilePath(sDataHomeDir), "agentId");
 	const char *sessionkey = pam_getenv(pamh, ENV_HIWARE_SESSIONKEY);
 	const char *su_sessionkey = pam_getenv(pamh, ENV_HIWARE_SU_SESSIONKEY);
