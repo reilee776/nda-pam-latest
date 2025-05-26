@@ -123,7 +123,7 @@ install:
 
 # Clean up generated files
 clean:
-	rm -f $(OBJS) nda-pam.so nda-pam.so.3
+	rm -f $(OBJS) nda-pam.so nda-pam.so.3 nda-pam.tar
 	#rm -f $(OBJS) $(TARGET)
 
 # Debugging: Print variables
