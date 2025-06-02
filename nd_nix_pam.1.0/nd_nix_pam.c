@@ -952,6 +952,12 @@ int nd_pam_authenticate_user(char *uuid_str, SessionInfo *user_info, pam_handle_
 
 			return PAM_SUCCESS;
 		}
+		else if (strcmp(authsvr_emergency_act, "0") == 0)
+		{
+			/**/
+                        nd_log(NDLOG_ERR, "[HIW-AGT-PAM-NERR-000001] Unable to connect to the API server. Info = %s:%d, emergency mode = %s", auth_server_ip, authsvr_port, authsvr_emergency_act);
+                        return PAM_AUTH_ERR;
+		}
 		else if (strcmp(authsvr_emergency_act, SET_MODE_BLOCK) == 0)
 		{
 			/**/
