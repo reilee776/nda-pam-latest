@@ -1743,7 +1743,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		nd_log(NDLOG_DBG, "output patn - sess_pol_file[%s]", sess_pol_file);
 		nd_log(NDLOG_DBG, "Create Dir :[%s] and copy org rule file result: [%d]", bak_sess_pol_dir,  copy_file_to_folder (sess_pol_file, bak_sess_pol_dir));
 #endif //0
- 
+		// If the check value(pam_opermode) is not 1, no further action is taken. << (expected)
 		copy_file_to_folder (sess_pol_file, bak_sess_pol_dir);
 		
 
@@ -2265,6 +2265,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 			sprintf (bak_sess_pol_dir, "/%s/rule/%s", sDataHomeDir, uuid_str);
 			sprintf (sess_pol_file, "/%s/rule/%s", sDataHomeDir,COMMON_RULE_FILE);
 
+			// If the check value(pam_opermode) is not 1, no further action is taken  << (expected)
 			copy_file_to_folder (sess_pol_file, bak_sess_pol_dir);
 
 			retval = PAM_SUCCESS;
