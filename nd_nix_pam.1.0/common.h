@@ -326,7 +326,7 @@ extern int g_nDataSshPort;
 
 extern char * g_sConfFilePath;
 
-char g_sDataAgentId[2];
+extern char g_sDataAgentId[2];
 
 /*
 		// su log format
